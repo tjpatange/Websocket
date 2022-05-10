@@ -1,0 +1,120 @@
+<!doctype html>
+<html>
+
+<head>
+    <title>Implement Progress + Websocket.io</title>
+    <link rel="stylesheet" src="http://normalize-css.googlecode.com/svn/trunk/normalize.css" />
+    <link rel="stylesheet" src="http://code.jquery.com/ui/1.10.3/themes/smoothness/jquery-ui.css" />
+    <script src="http://code.jquery.com/jquery-1.10.2.js"></script>
+    <script src="http://code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+
+<body>
+    <form id="sub-form">
+        <label for="uuid-input">Enter a UUID:</label>
+        <input id="uuid-input" maxlength="40" size="50" value="db3b25a674d1819ce21162fb1d3ffad225467603" />
+        <input type="submit" id="sub-button" value="Subscribe" />
+        <div id="uuid-error">The specified UUID is invalid.</div>
+    </form>
+    <div id="console">
+        <div id="monitor-header">
+            <div id="monitor-uuid"></div>
+            <div id="monitor-time"></div>
+            <div id="monitor-controls">
+                <form id="command-form"><input type="button" id="reset-button" value="Reset Stats" /></form>
+            </div>
+        </div>
+        <div id="monitor-data">
+            <ul>
+                <li><a href="#tab-1">Table Activity</a></li>
+                <li><a href="#tab-2">Index Activity</a></li>
+                <li><a href="#tab-3">User Activity</a></li>
+            </ul>
+            <div id="tab-1">
+                <table id="activity-table"></table>
+            </div>
+            <div id="tab-2">
+                <table id="index-table"></table>
+            </div>
+            <div id="tab-3">
+                <table id="user-table"></table>
+            </div>
+        </div>
+    </div>
+    <script>
+            $(document).ready(function () {
+                // Give focus to the UUID input when the page loads
+                $("#uuid-input").focus();
+                // Create a connection to the server
+                var socket = io.connect(document.URL);
+                // Prepare tab interface.
+                $("#monitor-data").tabs();
+                // Handler for updating screen data.
+                $.updateConsole = function (data) {
+                    //...
+                }
+                // Handler for subscription event.
+                $.doSubscribe = function () { 
+                    //write code ...
+                }
+                // Handle submission of the form, try to subscribe to the UUID.
+                $("#sub-form").submit(function (ev) {
+                    // Prevent the browser from submitting the form via HTTP
+                    ev.preventDefault();
+                    // Attempt to subscribe to the given UUID.
+                    $.doSubscribe();
+                })
+            });
+            $.doSubscribe = function () {
+                    var uuid = $("#uuid-input").val();
+                    if (uuid) {
+                        socket.emit("listen", uuid, function (successful) {
+                            if (successful) {
+                                // Hide the subscription form and show the main console.
+                                $("#sub-form").hide();
+                                $("#console").show();
+                                $("<span>").addClass("system-message").text("Subscribed to "
+                                    + uuid).appendTo("#monitor-uuid");
+
+                                // Handle incoming broadcasts (sends "data" as a parameter).
+                                socket.on("broadcast-data", $.updateConsole);
+                                // Handle sending of commands.
+                                $("#reset-button").click(function (ev) {
+                                    // Queue command for the next broadcast from harvester.
+                                    socket.emit("send-command", uuid, "reset");
+                                    alert("Statistics will be reset after the next update.");
+                                });
+                            } else {
+                                // If the request to subscribe was rejected, show an error message.
+                                $("#uuid-error").show();
+                            }
+                        });
+                    }
+                }
+                $.updateConsole = function (data) {
+                        // Split data into tables.
+                        var monitorData = null;
+                        if (typeof (data) == "string") {
+                            try {
+                                // Always parse in a try/catch block!
+                                monitorData = JSON.parse(data);
+                            } catch (parseErr) {
+                                // Fail silently.
+                            }
+                        } else if (typeof (data) == "object") {
+                            monitorData = data;
+                        }
+                        monitorData = monitorData || {};
+                        var activity = monitorData.returnAct || [];
+                        var indexAct = monitorData.returnIdxAct || [];
+                        var userAct = monitorData.returnUsrAct || [];
+                        $("#activity-table").empty();
+                        $("#index-table").empty();
+                        $("#user-table").empty();
+                        //...
+                    }
+        </script>
+</body>
+
+</html>
